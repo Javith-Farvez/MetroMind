@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://metrouser:metropass@postgres:5432/metromind
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_URL=http://minio:9000
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: metrouser
+      POSTGRES_PASSWORD: metropass
+      POSTGRES_DB: metromind
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python main.py
+    environment:
+      - DATABASE_URL=postgresql://metrouser:metropass@postgres:5432/metromind
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+
+  minio:
+    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+
+volumes:
+  postgres_data:
